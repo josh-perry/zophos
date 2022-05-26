@@ -1,4 +1,4 @@
-include "MoveMessage.fbs";
+include "UpdatePositionMessage.fbs";
 include "SetNameMessage.fbs";
 include "PlayerConnectMessage.fbs";
 
@@ -6,7 +6,7 @@ namespace Zophos.Data;
 
 union Message {
     SetNameMessage,
-    MoveMessage,
+    UpdatePositionMessage,
     PlayerConnectMessage
 }
 
