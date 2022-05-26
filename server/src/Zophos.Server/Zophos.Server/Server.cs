@@ -21,20 +21,19 @@ public class Server
 
         socket.Bind(ip);
 
-        var sender = new IPEndPoint(IPAddress.Any, 0);
-        var remote = (EndPoint)sender;
-
         while (true)
         {
             var receivedData = new byte[1024];
-            var receivedDataLength = socket.ReceiveFrom(receivedData, ref remote);
-
             var byteBuffer = new ByteBuffer(receivedData);
-            
             var message = BaseMessage.GetRootAsBaseMessage(byteBuffer);
-            HandleMessage(message);
             
-            socket.SendTo(receivedData, receivedDataLength, SocketFlags.None, remote);
+            // TODO: something better than this!
+            if (message.MessageType == Message.NONE)
+            {
+                continue;
+            }
+            
+            HandleMessage(message);
         }
     }
     
