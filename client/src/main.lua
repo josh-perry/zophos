@@ -1,13 +1,7 @@
 local batteries = require("lib.batteries")
 batteries:export()
 
-local flatbuffers = require("flatbuffers")
-
-local MessageType = require("schemas.Message")
-local BaseMessage = require("schemas.BaseMessage")
-local SetNameMessage = require("schemas.SetNameMessage")
-local PlayerConnectMessage = require("schemas.PlayerConnectMessage")
-local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
+local messageBuilders = require("messageBuilders")
 
 local socket = require("socket")
 local client
@@ -30,67 +24,6 @@ local function generateUuid4()
     return uuid4
 end
 
-local function buildBaseMessage(builder, message, messageType)
-    local clientId = builder:CreateString(player.clientId)
-
-    BaseMessage.Start(builder)
-
-    BaseMessage.AddClientId(builder, clientId)
-    BaseMessage.AddMessageType(builder, messageType)
-    BaseMessage.AddMessage(builder, message)
-
-    local message = BaseMessage.End(builder)
-    return builder:Finish(message)
-end
-
-local function buildConnectMessage()
-    local builder = flatbuffers.Builder(1024)
-
-    PlayerConnectMessage.Start(builder)
-    local connectMessage = PlayerConnectMessage.End(builder)
-
-    buildBaseMessage(builder, connectMessage, MessageType.PlayerConnectMessage)
-
-    return builder:Output()
-end
-
-local function buildSetNameMessage()
-    local builder = flatbuffers.Builder(1024)
-    local name = builder:CreateString(player.name)
-    local clientId = builder:CreateString(player.clientId)
-
-    SetNameMessage.Start(builder)
-    SetNameMessage.AddName(builder, name)
-    local setNameMessage = SetNameMessage.End(builder)
-
-    BaseMessage.Start(builder)
-    BaseMessage.AddMessageType(builder, MessageType.SetNameMessage)
-    BaseMessage.AddMessage(builder, setNameMessage)
-    BaseMessage.AddClientId(builder, clientId)
-    local object = BaseMessage.End(builder)
-
-    builder:Finish(object)
-    return builder:Output()
-end
-
-local function buildUpdatePositionMessage(x, y)
-    local builder = flatbuffers.Builder(1024)
-
-    UpdatePositionMessage.Start(builder)
-    UpdatePositionMessage.AddX(builder, x)
-    UpdatePositionMessage.AddY(builder, y)
-    local updatePositionMessage = UpdatePositionMessage.End(builder)
-
-    buildBaseMessage(builder, updatePositionMessage, MessageType.UpdatePositionMessage)
-
-    return builder:Output()
-end
-
-local function updatePlayerPosition(x, y)
-    local message = buildUpdatePositionMessage(x, y)
-    client:send(message)
-end
-
 function love.load()
     client = socket.udp()
     client:settimeout(0)
@@ -104,7 +37,7 @@ function love.load()
     player.clientId = generateUuid4()
     player.name = string.format("Player (%s)", player.clientId)
 
-    client:send(buildConnectMessage())
+    client:send(messageBuilders.connect(player.clientId))
 end
 
 function love.update(dt)
@@ -134,7 +67,7 @@ function love.update(dt)
     if dx ~= 0 or dy ~= 0 then
         player.x = player.x + dx * player.speed * dt
         player.y = player.y + dy * player.speed * dt
-        updatePlayerPosition(player.x, player.y)
+        client:send(messageBuilders.updatePosition(player.clientId, player.x, player.y))
     end
 
     heartbeatTimer = heartbeatTimer - dt
@@ -164,7 +97,8 @@ end
 
 function love.keypressed(key)
     if key == "space" then
-        local output = buildSetNameMessage(builder)
-        client:send(output)
+        client:send(messageBuilders.setName(player.clientId, "my new name"))
+    elseif key == "return" then
+        client:send(messageBuilders.chat(player.clientId, "hello world"))
     end
 end
