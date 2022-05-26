@@ -525,3 +525,4 @@ fabric.properties
 
 server/src/Zophos.Server/Zophos.Data/Schemas
 client/src/schemas
+client/src/lib/batteries
