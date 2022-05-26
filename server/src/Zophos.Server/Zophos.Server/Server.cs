@@ -54,10 +54,13 @@ public class Server
             case Message.SetNameMessage:
                 SetName(message);
                 break;
-            case Message.MoveMessage:
+            case Message.UpdatePositionMessage:
+                UpdatePosition(message);
                 break;
             case Message.PlayerConnectMessage:
                 PlayerConnect(message);
+                break;
+            case Message.HeartbeatMessage:
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(message.MessageType));
@@ -85,5 +88,18 @@ public class Server
         
         var setNameMessage = message.MessageAsSetNameMessage();
         client.Name = setNameMessage.Name;
+    }
+
+    private void UpdatePosition(BaseMessage message)
+    {
+        var client = Clients.FirstOrDefault(x => x.ClientId == message.ClientId);
+        if (client == null)
+        {
+            return;
+        }
+
+        var updatePositionMessage = message.MessageAsUpdatePositionMessage();
+        client.X = updatePositionMessage.X;
+        client.Y = updatePositionMessage.Y;
     }
 }
