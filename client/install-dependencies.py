@@ -1,3 +1,4 @@
+import glob
 import os
 from pathlib import Path
 import subprocess
@@ -25,14 +26,22 @@ def install_dependencies(dependencies):
         print(f"[INF] Installing '{dependency.input_folder}'")
         os.makedirs(dependency.output_folder, 0o777, True)
 
-        for file in dependency.files_to_copy:
-            shutil.copy(dependency.input_folder/file, dependency.output_folder/file)
+        for file_glob in dependency.files_to_copy:
+            path_with_glob = Path(dependency.input_folder) / file_glob
+
+            for file in glob.glob(str(path_with_glob)):
+                # Take out the dependencies/folder from the front of the path
+                strippedPath = Path(*Path(file).parts[2:])
+                shutil.copy(file, dependency.output_folder / strippedPath)
 
 if __name__ == "__main__":
     clone_submodules()
 
+    os.chdir("client")
+
     dependencies = [
-        Dependency("dependencies/json.lua", "src/lib/json", ["json.lua"])
+        Dependency("dependencies/json.lua", "src/lib/json", ["json.lua"]),
+        Dependency("dependencies/batteries", "src/lib/batteries", ["*.lua"])
     ]
 
     install_dependencies(dependencies)
