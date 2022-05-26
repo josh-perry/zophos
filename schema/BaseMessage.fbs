@@ -1,0 +1,18 @@
+include "MoveMessage.fbs";
+include "SetNameMessage.fbs";
+include "PlayerConnectMessage.fbs";
+
+namespace Zophos.Data;
+
+union Message {
+    SetNameMessage,
+    MoveMessage,
+    PlayerConnectMessage
+}
+
+table BaseMessage {
+    client_id: string (required);
+    message: Message;
+}
+
+root_type BaseMessage;

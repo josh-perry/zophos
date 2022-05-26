@@ -1,0 +1,5 @@
+namespace Zophos.Data;
+
+table PlayerConnectMessage {
+
+}
