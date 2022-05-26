@@ -1,0 +1,15 @@
+namespace Zophos.Data;
+
+enum Facing:byte {
+    Up,
+    Down,
+    Left,
+    Right
+}
+
+table TestObject {
+    message: string;
+    facing: Facing;
+}
+
+root_type TestObject;
