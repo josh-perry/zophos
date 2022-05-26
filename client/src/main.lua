@@ -41,7 +41,7 @@ local function buildConnectMessage()
     PlayerConnectMessage.Start(builder)
     local connectMessage = PlayerConnectMessage.End(builder)
 
-    buildBaseMessage(builder, MessageType.PlayerConnectMessage, connectMessage)
+    buildBaseMessage(builder, connectMessage, MessageType.PlayerConnectMessage)
 
     return builder:Output()
 end
