@@ -1,0 +1,6 @@
+[submodule "client/dependencies/batteries"]
+	path = client/dependencies/batteries
+	url = https://github.com/1bardesign/batteries.git
+[submodule "client/dependencies/json.lua"]
+	path = client/dependencies/json.lua
+	url = https://github.com/rxi/json.lua
