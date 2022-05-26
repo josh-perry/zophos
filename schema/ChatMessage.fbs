@@ -1,0 +1,6 @@
+namespace Zophos.Data;
+
+table ChatMessage {
+    client_id: string;
+    contents: string;
+}
