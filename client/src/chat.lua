@@ -1,3 +1,5 @@
+local utf8 = require("utf8")
+
 local ChatMessage = require("schemas.ChatMessage")
 
 local messageBuilders = require("messageBuilders")
@@ -7,6 +9,7 @@ local chat = {}
 
 chat.messages = {}
 chat.messageToSend = ""
+chat.focused = false
 
 function chat:addMessage(baseMessage)
     local chatMessage = ChatMessage.New()
@@ -32,14 +35,24 @@ function chat:draw()
             love.graphics.print(string.format("%s:\t%s", m.speaker, m.message), 10, y)
         end
     end
+
+    if not chat.focused then
+        return
+    end
+
     love.graphics.print("> "..self.messageToSend, 10, love.graphics.getHeight() - lineHeight)
 end
 
-function chat:update()
+function chat:toggleFocus()
+    self:setFocus(not self.focused)
+end
+
+function chat:setFocus(f)
+    self.focused = f
 end
 
 function chat:sendMessage(clientId)
-    if #self.messageToSend <= 0 then
+    if not self.focused or #self.messageToSend <= 0 then
         return
     end
 
@@ -48,14 +61,26 @@ function chat:sendMessage(clientId)
 end
 
 function chat:setMessageToSend(messageToSend)
+    if not self.focused then
+        return
+    end
+
     self.messageToSend = messageToSend
 end
 
 function chat:appendMessageToSend(toAppend)
+    if not self.focused then
+        return
+    end
+
     self.messageToSend = self.messageToSend..toAppend
 end
 
 function chat:backspace()
+    if not self.focused then
+        return
+    end
+
     local byteOffset = utf8.offset(self.messageToSend, -1)
 
     if byteOffset then

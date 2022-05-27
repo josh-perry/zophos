@@ -89,6 +89,8 @@ end
 function love.keypressed(key)
     if key == "space" then
         network:send(messageBuilders.setName(player.clientId, "my new name"))
+    elseif key == "tab" then
+        chat:toggleFocus()
     elseif key == "return" then
         chat:sendMessage(player.clientId)
     elseif key == "backspace" then
