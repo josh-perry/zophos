@@ -81,8 +81,7 @@ public class Server
                 PlayerConnect(state);
                 break;
             case Message.ChatMessage:
-                var chatMessage = state.BaseMessage.MessageAsChatMessage();
-                SendMessageToAllClients(chatMessage.Contents);
+                SendMessageToAllClients(state);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state.BaseMessage.MessageType));
@@ -126,21 +125,23 @@ public class Server
         state.Client.Y = updatePositionMessage.Y;
     }
 
-    private void SendMessageToAllClients(string message)
+    private void SendMessageToAllClients(MessageState state)
     {
+        var chatMessage = state.BaseMessage.MessageAsChatMessage();
+        
         var builder = new FlatBufferBuilder(1024);
         
-        var buildContents = builder.CreateString(message);
+        var buildContents = builder.CreateString(chatMessage.Contents);
         ChatMessage.StartChatMessage(builder);
         ChatMessage.AddContents(builder, buildContents);
         ChatMessage.AddSourceClientId(builder, 6969);
         ChatMessage.AddDestinationClientId(builder, 420);
-        var chatMessage = ChatMessage.EndChatMessage(builder);
+        var buildChatMessage = ChatMessage.EndChatMessage(builder);
         
-        var buildClientId = builder.CreateString("someone");
+        var buildClientId = builder.CreateString(state.Client.Name);
         BaseMessage.StartBaseMessage(builder);
         BaseMessage.AddMessageType(builder, Message.ChatMessage);
-        BaseMessage.AddMessage(builder, chatMessage.Value);
+        BaseMessage.AddMessage(builder, buildChatMessage.Value);
         BaseMessage.AddClientId(builder, buildClientId);
         var baseMessage = BaseMessage.EndBaseMessage(builder);
 
