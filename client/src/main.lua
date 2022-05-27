@@ -1,19 +1,12 @@
-local utf8 = require("utf8")
-
 local batteries = require("lib.batteries")
 batteries:export()
 
-local flatbuffers = require("flatbuffers")
 local messageBuilders = require("messageBuilders")
 local chat = require("chat")
 
 local MessageType = require("schemas.Message")
-local BaseMessage = require("schemas.BaseMessage")
-local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
 
 local network = require("network")
-
-local socket = require("socket")
 
 local player = {}
 
