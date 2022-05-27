@@ -9,7 +9,9 @@ local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
 
 local messageBuilders = {}
 
-local function buildBaseMessage(builder, clientId, message, messageType)
+local defaultBufferSize = 1024
+
+local function buildBaseMessageAndFinish(builder, clientId, message, messageType)
     local buildClientId = builder:CreateString(clientId)
 
     BaseMessage.Start(builder)
@@ -23,17 +25,17 @@ local function buildBaseMessage(builder, clientId, message, messageType)
 end
 
 function messageBuilders.connect(clientId)
-    local builder = flatbuffers.Builder(1024)
+    local builder = flatbuffers.Builder(defaultBufferSize)
 
     PlayerConnectMessage.Start(builder)
     local connectMessage = PlayerConnectMessage.End(builder)
 
-    buildBaseMessage(builder, clientId, connectMessage, MessageType.PlayerConnectMessage)
+    buildBaseMessageAndFinish(builder, clientId, connectMessage, MessageType.PlayerConnectMessage)
     return builder:Output()
 end
 
 function messageBuilders.chat(clientId, contents)
-    local builder = flatbuffers.Builder(1024)
+    local builder = flatbuffers.Builder(defaultBufferSize)
     local buildClientId = builder:CreateString(clientId)
     local buildContents = builder:CreateString(contents)
 
@@ -41,12 +43,12 @@ function messageBuilders.chat(clientId, contents)
     ChatMessage.AddContents(builder, buildContents)
     local chatMessage = ChatMessage.End(builder)
 
-    buildBaseMessage(builder, clientId, chatMessage, MessageType.ChatMessage)
+    buildBaseMessageAndFinish(builder, clientId, chatMessage, MessageType.ChatMessage)
     return builder:Output()
 end
 
 function messageBuilders.setName(clientId, name)
-    local builder = flatbuffers.Builder(1024)
+    local builder = flatbuffers.Builder(defaultBufferSize)
     local buildName = builder:CreateString(name)
     local buildClientId = builder:CreateString(clientId)
 
@@ -54,19 +56,19 @@ function messageBuilders.setName(clientId, name)
     SetNameMessage.AddName(builder, buildName)
     local setNameMessage = SetNameMessage.End(builder)
 
-    buildBaseMessage(builder, clientId, setNameMessage, MessageType.SetNameMessage)
+    buildBaseMessageAndFinish(builder, clientId, setNameMessage, MessageType.SetNameMessage)
     return builder:Output()
 end
 
 function messageBuilders.updatePosition(clientId, x, y)
-    local builder = flatbuffers.Builder(1024)
+    local builder = flatbuffers.Builder(defaultBufferSize)
 
     UpdatePositionMessage.Start(builder)
     UpdatePositionMessage.AddX(builder, x)
     UpdatePositionMessage.AddY(builder, y)
     local updatePositionMessage = UpdatePositionMessage.End(builder)
 
-    buildBaseMessage(builder, clientId, updatePositionMessage, MessageType.UpdatePositionMessage)
+    buildBaseMessageAndFinish(builder, clientId, updatePositionMessage, MessageType.UpdatePositionMessage)
     return builder:Output()
 end
 
