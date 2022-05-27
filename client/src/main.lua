@@ -11,14 +11,12 @@ local BaseMessage = require("schemas.BaseMessage")
 local ChatMessage = require("schemas.ChatMessage")
 local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
 
+local network = require("network")
+
 local socket = require("socket")
-local client
 
 local chatMessages = {}
 local player = {}
-
-local lastHeartbeat = 0
-local heartbeatTimer = 0
 
 local messageToSend = ""
 
@@ -34,25 +32,7 @@ local function generateUuid4()
     return uuid4
 end
 
-local function handleMessage(messageBuffer)
-    local message = BaseMessage.GetRootAsBaseMessage(messageBuffer, 0)
-
-    if message:MessageType() == MessageType.ChatMessage then
-        local chatMessage = ChatMessage.New()
-        chatMessage:Init(message:Message().bytes, message:Message().pos)
-
-        table.insert(chatMessages, {
-            speaker = message:ClientId(),
-            message = chatMessage:Contents()
-        })
-    end
-end
-
 function love.load()
-    client = socket.udp()
-    client:settimeout(0)
-    client:setpeername("127.0.0.1", 22122)
-
     player.w = 32
     player.h = 32
     player.x = love.math.random(10, love.graphics.getWidth() - player.w - 10)
@@ -61,21 +41,21 @@ function love.load()
     player.clientId = generateUuid4()
     player.name = string.format("Player (%s)", player.clientId)
 
-    client:send(messageBuilders.connect(player.clientId))
+    network:initialize("127.0.0.1", 22122)
+    network:send(messageBuilders.connect(player.clientId))
+
+    network:addCallbackForMessageType(MessageType.ChatMessage, function(baseMessage)
+        local chatMessage = ChatMessage.New()
+        chatMessage:Init(baseMessage:Message().bytes, baseMessage:Message().pos)
+
+        table.insert(chatMessages, {
+            speaker = baseMessage:ClientId(),
+            message = chatMessage:Contents()
+        })
+    end)
 end
 
 function love.update(dt)
-    repeat
-        local data = client:receive()
-
-        if data then
-            lastHeartbeat = love.timer.getTime()
-
-            local buffer = flatbuffers.binaryArray.New(data)
-            handleMessage(buffer)
-        end
-    until not data
-
     local dx, dy = 0, 0
 
     if love.keyboard.isDown("w") then
@@ -94,14 +74,10 @@ function love.update(dt)
     if dx ~= 0 or dy ~= 0 then
         player.x = player.x + dx * player.speed * dt
         player.y = player.y + dy * player.speed * dt
-        client:send(messageBuilders.updatePosition(player.clientId, player.x, player.y))
+        network:send(messageBuilders.updatePosition(player.clientId, player.x, player.y))
     end
 
-    heartbeatTimer = heartbeatTimer - dt
-    if heartbeatTimer <= 0 then
-        heartbeatTimer = 1
-        client:send("")
-    end
+    network:update(dt)
 end
 
 function love.textinput(text)
@@ -114,7 +90,7 @@ function love.draw()
     love.graphics.print(player.clientId, 10, 30)
 
     local r = 8
-    love.graphics.setColor(0, 1, 0, 1 - (love.timer.getTime() - lastHeartbeat))
+    love.graphics.setColor(0, 1, 0, 1 - (love.timer.getTime() - network.heartbeat.lastHeartbeatResponse))
     love.graphics.circle("fill", love.graphics.getWidth() - 10 - r * 2, 10 + r * 2, r)
 
     love.graphics.setColor(0.5, 0.5, 1)
@@ -137,10 +113,10 @@ end
 
 function love.keypressed(key)
     if key == "space" then
-        client:send(messageBuilders.setName(player.clientId, "my new name"))
+        network:send(messageBuilders.setName(player.clientId, "my new name"))
     elseif key == "return" then
         if #messageToSend > 0 then
-            client:send(messageBuilders.chat(player.clientId, messageToSend))
+            network:send(messageBuilders.chat(player.clientId, messageToSend))
             messageToSend = ""
         end
     elseif key == "backspace" then
