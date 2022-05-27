@@ -148,13 +148,15 @@ public class Server
         var builder = new FlatBufferBuilder(1024);
         
         var buildContents = builder.CreateString(chatMessage.Contents);
+        var buildSourceClientId = builder.CreateString(state.Client?.ClientId);
+        var buildDestinationSourceId = builder.CreateString(string.Empty);
         ChatMessage.StartChatMessage(builder);
         ChatMessage.AddContents(builder, buildContents);
-        ChatMessage.AddSourceClientId(builder, 6969);
-        ChatMessage.AddDestinationClientId(builder, 420);
+        ChatMessage.AddSourceClientId(builder, buildSourceClientId);
+        ChatMessage.AddDestinationClientId(builder, buildDestinationSourceId);
         var buildChatMessage = ChatMessage.EndChatMessage(builder);
         
-        var buildClientId = builder.CreateString(state.Client.Name);
+        var buildClientId = builder.CreateString(state.Client?.ClientId);
         BaseMessage.StartBaseMessage(builder);
         BaseMessage.AddMessageType(builder, Message.ChatMessage);
         BaseMessage.AddMessage(builder, buildChatMessage.Value);
