@@ -5,20 +5,17 @@ batteries:export()
 
 local flatbuffers = require("flatbuffers")
 local messageBuilders = require("messageBuilders")
+local chat = require("chat")
 
 local MessageType = require("schemas.Message")
 local BaseMessage = require("schemas.BaseMessage")
-local ChatMessage = require("schemas.ChatMessage")
 local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
 
 local network = require("network")
 
 local socket = require("socket")
 
-local chatMessages = {}
 local player = {}
-
-local messageToSend = ""
 
 local function generateUuid4()
     local _random = love.math.random
@@ -45,13 +42,7 @@ function love.load()
     network:send(messageBuilders.connect(player.clientId))
 
     network:addCallbackForMessageType(MessageType.ChatMessage, function(baseMessage)
-        local chatMessage = ChatMessage.New()
-        chatMessage:Init(baseMessage:Message().bytes, baseMessage:Message().pos)
-
-        table.insert(chatMessages, {
-            speaker = baseMessage:ClientId(),
-            message = chatMessage:Contents()
-        })
+        chat:addMessage(baseMessage)
     end)
 end
 
@@ -80,10 +71,6 @@ function love.update(dt)
     network:update(dt)
 end
 
-function love.textinput(text)
-    messageToSend = messageToSend..text
-end
-
 function love.draw()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print(player.name, 10, 10)
@@ -96,34 +83,19 @@ function love.draw()
     love.graphics.setColor(0.5, 0.5, 1)
     love.graphics.rectangle("fill", math.round(player.x), math.round(player.y), player.w, player.h)
 
-    love.graphics.setColor(1, 1, 1)
-
-    local lineHeight = 24
-    local showLastMessagesCount = 5
-    for i = showLastMessagesCount, 1, -1 do
-        local m = chatMessages[#chatMessages-showLastMessagesCount+i]
-
-        if m then
-            local y = love.graphics.getHeight() - (showLastMessagesCount - i + 2) * lineHeight
-            love.graphics.print(string.format("%s:\t%s", m.speaker, m.message), 10, y)
-        end
-    end
-    love.graphics.print("> "..messageToSend, 10, love.graphics.getHeight() - lineHeight)
+    chat:draw()
 end
 
 function love.keypressed(key)
     if key == "space" then
         network:send(messageBuilders.setName(player.clientId, "my new name"))
     elseif key == "return" then
-        if #messageToSend > 0 then
-            network:send(messageBuilders.chat(player.clientId, messageToSend))
-            messageToSend = ""
-        end
+        chat:sendMessage(player.clientId)
     elseif key == "backspace" then
-        local byteOffset = utf8.offset(messageToSend, -1)
-
-        if byteOffset then
-            messageToSend = string.sub(messageToSend, 1, byteOffset - 1)
-        end
+        chat:backspace()
     end
+end
+
+function love.textinput(text)
+    chat:appendMessageToSend(text)
 end
