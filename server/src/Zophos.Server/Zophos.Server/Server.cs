@@ -37,32 +37,48 @@ public class Server
         while (true)
         {
             var receivedData = new byte[1024];
-            _socket.ReceiveFrom(receivedData, ref remote);
+            try
+            {
+                _socket.ReceiveFrom(receivedData, ref remote);
+            }
+            catch (SocketException)
+            {
+                DropClient(remote);
+                continue;
+            }
+
             var byteBuffer = new ByteBuffer(receivedData);
             var message = BaseMessage.GetRootAsBaseMessage(byteBuffer);
-            
+
             var client = Clients.FirstOrDefault(x => x.ClientId == message.ClientId);
-            
+
             if (client == null && message.MessageType != Message.PlayerConnectMessage)
             {
                 // This client doesn't exist and isn't trying to connect, bin the request.
                 continue;
             }
-            
+
             var state = new MessageState
             {
                 BaseMessage = message,
                 Client = client,
                 Remote = remote
             };
-            
-            if (message.MessageType == Message.NONE)
-            {
-                continue;
-            }
 
             HandleMessage(state);
         }
+    }
+
+    private void DropClient(EndPoint remote)
+    {
+        var client = Clients.FirstOrDefault(x => x.EndPoint == remote);
+
+        if (client == null)
+        {
+            return;
+        }
+        
+        Clients.Remove(client);
     }
     
     private void HandleMessage(MessageState state)
