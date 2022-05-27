@@ -1,4 +1,6 @@
-﻿namespace Zophos.Server;
+﻿using System.Net;
+
+namespace Zophos.Server;
 
 public class Client
 {
@@ -9,6 +11,8 @@ public class Client
     public float X { get; set; } = 0f;
     
     public float Y { get; set; } = 0f;
+    
+    public EndPoint EndPoint { get; set; }
 
     public Client(string clientId)
     {
