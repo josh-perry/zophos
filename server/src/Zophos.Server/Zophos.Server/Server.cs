@@ -106,6 +106,7 @@ public class Server
 
     private void PlayerConnect(MessageState state)
     {
+        // TODO: we shouldn't need to do this: if the client was already connected it would be in the state object.
         if (Clients.FirstOrDefault(x => x.ClientId == state.BaseMessage.ClientId) != null)
         {
             // Player is already connected.
@@ -120,6 +121,7 @@ public class Server
 
     private void SetName(MessageState state)
     {
+        // TODO: an attribute to mark that this requires a client?
         if (state.Client == null)
         {
             return;
@@ -131,6 +133,7 @@ public class Server
 
     private void UpdatePosition(MessageState state)
     {
+        // TODO: an attribute to mark that this requires a client?
         if (state.Client == null)
         {
             return;
