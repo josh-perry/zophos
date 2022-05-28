@@ -105,9 +105,15 @@ function love.draw()
     love.graphics.print(player.name, 10, 10)
     love.graphics.print(player.clientId, 10, 30)
 
-    local r = 8
-    love.graphics.setColor(0, 1, 0, 1 - (love.timer.getTime() - network.heartbeat.lastHeartbeatResponse))
-    love.graphics.circle("fill", love.graphics.getWidth() - 10 - r * 2, 10 + r * 2, r)
+    if network.falseDisconnect then
+        local r = 8
+        love.graphics.setColor(1, 0, 0, 1)
+        love.graphics.circle("fill", love.graphics.getWidth() - 10 - r * 2, 10 + r * 2, r)
+    else
+        local r = 8
+        love.graphics.setColor(0, 1, 0, 1 - (love.timer.getTime() - network.heartbeat.lastHeartbeatResponse))
+        love.graphics.circle("fill", love.graphics.getWidth() - 10 - r * 2, 10 + r * 2, r)
+    end
 
     love.graphics.setColor(0.5, 0.5, 1)
     love.graphics.rectangle("fill", math.round(player.x), math.round(player.y), player.w, player.h)
