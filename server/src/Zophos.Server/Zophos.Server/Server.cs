@@ -41,14 +41,17 @@ public class Server
     {
         while (true)
         {
-            foreach (var destinationClient in Clients)
+            lock (Clients)
             {
-                foreach (var subjectClient in Clients)
+                foreach (var destinationClient in Clients)
                 {
-                    SendClientPositionToClient(destinationClient, subjectClient);
+                    foreach (var subjectClient in Clients)
+                    {
+                        SendClientPositionToClient(destinationClient, subjectClient);
+                    }
                 }
             }
-            
+
             Thread.Sleep(TickRateMilliseconds);
         }
     }
