@@ -20,6 +20,8 @@ public class Server
 
     private readonly Socket _socket;
 
+    private Thread _tickThread;
+
     public Server()
     {
         Clients = new List<Client>();
@@ -27,6 +29,26 @@ public class Server
         var ip = new IPEndPoint(IPAddress.Any, 22122);
         _socket = new Socket(AddressFamily.InterNetwork,SocketType.Dgram, ProtocolType.Udp);
         _socket.Bind(ip);
+
+        var threadStart = new ThreadStart(Tick);
+        _tickThread = new Thread(threadStart);
+        _tickThread.Start();
+    }
+
+    private void Tick()
+    {
+        while (true)
+        {
+            foreach (var destinationClient in Clients)
+            {
+                foreach (var subjectClient in Clients)
+                {
+                    SendClientPositionToClient(destinationClient, subjectClient);
+                }
+            }
+            
+            Thread.Sleep(80);
+        }
     }
 
     public void Start()
@@ -142,6 +164,28 @@ public class Server
         var updatePositionMessage = state.BaseMessage.MessageAsUpdatePositionMessage();
         state.Client.X = updatePositionMessage.X;
         state.Client.Y = updatePositionMessage.Y;
+    }
+
+    private void SendClientPositionToClient(Client subjectClient, Client destinationClient)
+    {
+        var builder = new FlatBufferBuilder(1024);
+        
+        UpdatePositionMessage.StartUpdatePositionMessage(builder);
+        UpdatePositionMessage.AddX(builder, subjectClient.X);
+        UpdatePositionMessage.AddY(builder, subjectClient.Y);
+        var buildUpdatePositionMessage = UpdatePositionMessage.EndUpdatePositionMessage(builder);
+        
+        var buildClientId = builder.CreateString(subjectClient.ClientId);
+        BaseMessage.StartBaseMessage(builder);
+        BaseMessage.AddMessageType(builder, Message.UpdatePositionMessage);
+        BaseMessage.AddMessage(builder, buildUpdatePositionMessage.Value);
+        BaseMessage.AddClientId(builder, buildClientId);
+        var baseMessage = BaseMessage.EndBaseMessage(builder);
+
+        builder.Finish(baseMessage.Value);
+
+        var byteBuffer = builder.SizedByteArray();
+        _socket.SendToAsync(byteBuffer, SocketFlags.None, destinationClient.EndPoint);
     }
 
     private void SendMessageToAllClients(MessageState state)
