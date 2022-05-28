@@ -22,6 +22,8 @@ public class Server
 
     private Thread _tickThread;
 
+    private const int TickRateMilliseconds = 32;
+
     public Server()
     {
         Clients = new List<Client>();
@@ -47,7 +49,7 @@ public class Server
                 }
             }
             
-            Thread.Sleep(80);
+            Thread.Sleep(TickRateMilliseconds);
         }
     }
 
