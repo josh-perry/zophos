@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using FlatBuffers;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Zophos.Data;
 
 namespace Zophos.Server;
@@ -14,7 +16,7 @@ public class MessageState
     public Client Client;
 }
 
-public class Server
+public class Server : IHostedService
 {
     public readonly IList<Client> Clients;
 
@@ -24,8 +26,12 @@ public class Server
 
     private const int TickRateMilliseconds = 32;
 
-    public Server()
+    private readonly ILogger _logger;
+
+    public Server(ILogger<Server> logger)
     {
+        _logger = logger;
+        
         Clients = new List<Client>();
         
         var ip = new IPEndPoint(IPAddress.Any, 22122);
@@ -223,5 +229,18 @@ public class Server
         {
             _socket.SendTo(byteBuffer, byteBuffer.Length, SocketFlags.None, client.EndPoint);
         }
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Starting...");
+        Start();
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Stopping...");
+        return Task.CompletedTask;
     }
 }
