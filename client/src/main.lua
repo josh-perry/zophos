@@ -88,6 +88,8 @@ function love.keypressed(key)
         chat:sendMessage(player.clientId)
     elseif key == "backspace" then
         chat:backspace()
+    elseif key == "f2" then
+        network.falseDisconnect = not network.falseDisconnect
     end
 end
 

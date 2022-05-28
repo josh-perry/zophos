@@ -7,6 +7,7 @@ local network = {}
 network.client = {}
 network.queuedMessages = {}
 network.callbacks = {}
+network.falseDisconnect = false
 
 network.heartbeat = {
     lastHeartbeatResponse = 0,
@@ -39,6 +40,10 @@ function network:handleMessage(baseMessage)
 end
 
 function network:update(dt)
+    if self.falseDisconnect then
+        return
+    end
+
     repeat
         local data = self.client:receive()
 
@@ -56,6 +61,10 @@ function network:update(dt)
 end
 
 function network:flushMessages()
+    if self.falseDisconnect then
+        return
+    end
+
     for i = #self.queuedMessages, 1, -1 do
         local message = self.queuedMessages[i]
 
