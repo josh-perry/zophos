@@ -5,10 +5,12 @@ local messageBuilders = require("messageBuilders")
 local chat = require("chat")
 
 local MessageType = require("schemas.Message")
+local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
 
 local network = require("network")
 
 local player = {}
+local otherClients = {}
 
 local function generateUuid4()
     local _random = love.math.random
@@ -22,11 +24,28 @@ local function generateUuid4()
     return uuid4
 end
 
+function addClientIfUnknown(clientId, x, y, name)
+    if otherClients[clientId] then
+        return otherClients[clientId]
+    end
+
+    print("Adding other client!")
+    otherClients[clientId] = {
+        x = 0,
+        y = 0,
+        w = 32,
+        h = 32,
+        name = name or clientId or "[Unknown]"
+    }
+
+    return otherClients[clientId]
+end
+
 function love.load()
     player.w = 32
     player.h = 32
     player.x = love.math.random(10, love.graphics.getWidth() - player.w - 10)
-    player.y = love.math.random(0, love.graphics.getHeight() - player.h - 10)
+    player.y = love.math.random(10, love.graphics.getHeight() - player.h - 10)
     player.speed = 150
     player.clientId = generateUuid4()
     player.name = string.format("Player (%s)", player.clientId)
@@ -37,6 +56,23 @@ function love.load()
     network:addCallbackForMessageType(MessageType.ChatMessage, function(baseMessage)
         chat:addMessage(baseMessage)
     end)
+
+    network:addCallbackForMessageType(MessageType.UpdatePositionMessage, function(baseMessage)
+        local updatePositionMessage = UpdatePositionMessage.New()
+        updatePositionMessage:Init(baseMessage:Message().bytes, baseMessage:Message().pos)
+
+        if baseMessage:ClientId() ~= player.clientId then
+            local otherClient = addClientIfUnknown(baseMessage:ClientId())
+            otherClient.x = updatePositionMessage:X()
+            otherClient.y = updatePositionMessage:Y()
+            return
+        end
+
+        player.x = updatePositionMessage:X()
+        player.y = updatePositionMessage:Y()
+    end)
+
+    network:send(messageBuilders.updatePosition(player.clientId, player.x, player.y))
 end
 
 function love.update(dt)
@@ -75,6 +111,11 @@ function love.draw()
 
     love.graphics.setColor(0.5, 0.5, 1)
     love.graphics.rectangle("fill", math.round(player.x), math.round(player.y), player.w, player.h)
+
+    for i, v in pairs(otherClients) do
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.rectangle("line", math.round(v.x), math.round(v.y), v.w, v.h)
+    end
 
     chat:draw()
 end
