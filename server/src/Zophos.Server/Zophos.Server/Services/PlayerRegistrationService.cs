@@ -13,7 +13,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         _playerRepository = playerRepository;
     }
     
-    public NewRegistration RegisterPlayer(Client client, string name)
+    public NewRegistration RegisterPlayer(string name)
     {
         var player = new Player
         {

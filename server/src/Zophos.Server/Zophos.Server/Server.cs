@@ -4,6 +4,7 @@ using FlatBuffers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Zophos.Data;
+using Zophos.Data.Models.Db;
 
 namespace Zophos.Server;
 
@@ -13,12 +14,12 @@ public class MessageState
 
     public EndPoint Remote;
 
-    public Client Client;
+    public Player? Player;
 }
 
 public class Server : IHostedService
 {
-    public readonly IList<Client> Clients;
+    public readonly IList<ConnectedPlayer> ConnectedPlayers;
 
     private readonly Socket _socket;
 
@@ -34,8 +35,8 @@ public class Server : IHostedService
     {
         _logger = logger;
         _playerRegistrationService = playerRegistrationService;
-        
-        Clients = new List<Client>();
+
+        ConnectedPlayers = new List<ConnectedPlayer>();
         
         var ip = new IPEndPoint(IPAddress.Any, 22122);
         _socket = new Socket(AddressFamily.InterNetwork,SocketType.Dgram, ProtocolType.Udp);
@@ -50,13 +51,13 @@ public class Server : IHostedService
     {
         while (true)
         {
-            lock (Clients)
+            lock (ConnectedPlayers)
             {
-                foreach (var destinationClient in Clients)
+                foreach (var destinationClient in ConnectedPlayers)
                 {
-                    foreach (var subjectClient in Clients)
+                    foreach (var subjectClient in ConnectedPlayers)
                     {
-                        SendClientPositionToClient(destinationClient, subjectClient);
+                        SendClientPositionToConnectedPlayer(destinationClient, subjectClient);
                     }
                 }
             }
@@ -86,9 +87,10 @@ public class Server : IHostedService
             var byteBuffer = new ByteBuffer(receivedData);
             var message = BaseMessage.GetRootAsBaseMessage(byteBuffer);
 
-            var client = Clients.FirstOrDefault(x => x.ClientId == message.ClientId);
+            var validClientId = Guid.TryParse(message.ClientId, out var clientId);
+            var connectedPlayer = validClientId ? ConnectedPlayers.FirstOrDefault(x => x.Player?.Id == clientId) : null;
 
-            if (client == null && message.MessageType != Message.PlayerConnectMessage)
+            if (connectedPlayer == null && message.MessageType != Message.PlayerConnectMessage)
             {
                 // This client doesn't exist and isn't trying to connect, bin the request.
                 continue;
@@ -97,7 +99,7 @@ public class Server : IHostedService
             var state = new MessageState
             {
                 BaseMessage = message,
-                Client = client,
+                Player = connectedPlayer?.Player,
                 Remote = remote
             };
 
@@ -107,14 +109,14 @@ public class Server : IHostedService
 
     private void DropClient(EndPoint remote)
     {
-        var client = Clients.FirstOrDefault(x => x.EndPoint == remote);
+        var client = ConnectedPlayers.FirstOrDefault(x => x.EndPoint == remote);
 
         if (client == null)
         {
             return;
         }
         
-        Clients.Remove(client);
+        ConnectedPlayers.Remove(client);
     }
     
     private void HandleMessage(MessageState state)
@@ -133,7 +135,7 @@ public class Server : IHostedService
                 PlayerConnect(state);
                 break;
             case Message.ChatMessage:
-                SendMessageToAllClients(state);
+                SendMessageToAllConnectedPlayers(state);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state.BaseMessage.MessageType));
@@ -142,57 +144,85 @@ public class Server : IHostedService
 
     private void PlayerConnect(MessageState state)
     {
-        // TODO: we shouldn't need to do this: if the client was already connected it would be in the state object.
-        if (Clients.FirstOrDefault(x => x.ClientId == state.BaseMessage.ClientId) != null)
+        var player = _playerRegistrationService.RegisterPlayer("Me");
+
+        var connectedPlayer = new ConnectedPlayer
         {
-            // Player is already connected.
-            return;
-        }
-        
-        var client = new Client(state.BaseMessage.ClientId)
-        {
-            EndPoint = state.Remote
+            EndPoint = state.Remote,
+            Player = player.Player
         };
 
-        _playerRegistrationService.RegisterPlayer(client, "Me");
-        Clients.Add(client);
+        ConnectedPlayers.Add(connectedPlayer);
+        SendPlayerIdMessage(connectedPlayer);
     }
 
     private void SetName(MessageState state)
     {
         // TODO: an attribute to mark that this requires a client?
-        if (state.Client == null)
+        if (state.Player == null)
         {
             return;
         }
         
         var setNameMessage = state.BaseMessage.MessageAsSetNameMessage();
-        state.Client.Name = setNameMessage.Name;
+        state.Player.Name = setNameMessage.Name;
     }
 
     private void UpdatePosition(MessageState state)
     {
         // TODO: an attribute to mark that this requires a client?
-        if (state.Client == null)
+        if (state.Player == null)
         {
             return;
         }
 
         var updatePositionMessage = state.BaseMessage.MessageAsUpdatePositionMessage();
-        state.Client.X = updatePositionMessage.X;
-        state.Client.Y = updatePositionMessage.Y;
+        state.Player.X = updatePositionMessage.X;
+        state.Player.Y = updatePositionMessage.Y;
     }
 
-    private void SendClientPositionToClient(Client subjectClient, Client destinationClient)
+    private void SendPlayerIdMessage(ConnectedPlayer player)
     {
+        if (player.Player == null)
+        {
+            return;
+        }
+        
+        var builder = new FlatBufferBuilder(1024);
+
+        var buildPlayerId = builder.CreateString(player.Player.Id.ToString());
+        PlayerIdMessage.StartPlayerIdMessage(builder);
+        PlayerIdMessage.AddPlayerId(builder, buildPlayerId);
+        var buildUpdatePositionMessage = PlayerIdMessage.EndPlayerIdMessage(builder);
+        
+        var buildClientId = builder.CreateString(player.Player.Id.ToString());
+        BaseMessage.StartBaseMessage(builder);
+        BaseMessage.AddMessageType(builder, Message.PlayerIdMessage);
+        BaseMessage.AddMessage(builder, buildUpdatePositionMessage.Value);
+        BaseMessage.AddClientId(builder, buildClientId);
+        var baseMessage = BaseMessage.EndBaseMessage(builder);
+
+        builder.Finish(baseMessage.Value);
+
+        var byteBuffer = builder.SizedByteArray();
+        _socket.SendToAsync(byteBuffer, SocketFlags.None, player.EndPoint);
+    }
+
+    private void SendClientPositionToConnectedPlayer(ConnectedPlayer subjectPlayer, ConnectedPlayer destinationPlayer)
+    {
+        if (subjectPlayer.Player == null || destinationPlayer.Player == null)
+        {
+            return;
+        }
+
         var builder = new FlatBufferBuilder(1024);
         
         UpdatePositionMessage.StartUpdatePositionMessage(builder);
-        UpdatePositionMessage.AddX(builder, subjectClient.X);
-        UpdatePositionMessage.AddY(builder, subjectClient.Y);
+        UpdatePositionMessage.AddX(builder, subjectPlayer.Player.X);
+        UpdatePositionMessage.AddY(builder, subjectPlayer.Player.Y);
         var buildUpdatePositionMessage = UpdatePositionMessage.EndUpdatePositionMessage(builder);
         
-        var buildClientId = builder.CreateString(subjectClient.ClientId);
+        var buildClientId = builder.CreateString(subjectPlayer.Player.Id.ToString());
         BaseMessage.StartBaseMessage(builder);
         BaseMessage.AddMessageType(builder, Message.UpdatePositionMessage);
         BaseMessage.AddMessage(builder, buildUpdatePositionMessage.Value);
@@ -202,17 +232,17 @@ public class Server : IHostedService
         builder.Finish(baseMessage.Value);
 
         var byteBuffer = builder.SizedByteArray();
-        _socket.SendToAsync(byteBuffer, SocketFlags.None, destinationClient.EndPoint);
+        _socket.SendToAsync(byteBuffer, SocketFlags.None, destinationPlayer.EndPoint);
     }
 
-    private void SendMessageToAllClients(MessageState state)
+    private void SendMessageToAllConnectedPlayers(MessageState state)
     {
         var chatMessage = state.BaseMessage.MessageAsChatMessage();
         
         var builder = new FlatBufferBuilder(1024);
         
         var buildContents = builder.CreateString(chatMessage.Contents);
-        var buildSourceClientId = builder.CreateString(state.Client?.ClientId);
+        var buildSourceClientId = builder.CreateString(state.Player?.Id.ToString());
         var buildDestinationSourceId = builder.CreateString(string.Empty);
         ChatMessage.StartChatMessage(builder);
         ChatMessage.AddContents(builder, buildContents);
@@ -220,7 +250,7 @@ public class Server : IHostedService
         ChatMessage.AddDestinationClientId(builder, buildDestinationSourceId);
         var buildChatMessage = ChatMessage.EndChatMessage(builder);
         
-        var buildClientId = builder.CreateString(state.Client?.ClientId);
+        var buildClientId = builder.CreateString(state.Player?.Id.ToString());
         BaseMessage.StartBaseMessage(builder);
         BaseMessage.AddMessageType(builder, Message.ChatMessage);
         BaseMessage.AddMessage(builder, buildChatMessage.Value);
@@ -231,7 +261,7 @@ public class Server : IHostedService
 
         var byteBuffer = builder.SizedByteArray();
 
-        foreach (var client in Clients)
+        foreach (var client in ConnectedPlayers)
         {
             _socket.SendTo(byteBuffer, byteBuffer.Length, SocketFlags.None, client.EndPoint);
         }

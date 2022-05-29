@@ -4,5 +4,5 @@ namespace Zophos.Server;
 
 public interface IPlayerRegistrationService
 {
-    NewRegistration RegisterPlayer(Client client, string name);
+    NewRegistration RegisterPlayer(string name);
 }
