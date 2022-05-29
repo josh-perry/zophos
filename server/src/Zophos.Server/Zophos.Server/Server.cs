@@ -53,43 +53,18 @@ public class Server : IHostedService
         
         InitializeMessageEventHandlers();
     }
-
-    private void InitializeMessageEventHandlers()
+    
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        _messageNotifier.AddHandler(Message.SetNameMessage, SetName);
-        _messageNotifier.AddHandler(Message.ChatMessage, SendMessageToAllConnectedPlayers);
-        _messageNotifier.AddHandler(Message.PlayerConnectMessage, PlayerConnect);
-        _messageNotifier.AddHandler(Message.UpdatePositionMessage, UpdatePosition);
-    }
+        _logger.LogInformation("Starting...");
 
-    private void Tick()
-    {
-        while (true)
-        {
-            // TODO: I don't think this lock does quite what I want it to. Need more thread-safety in case of disconnects etc.
-            lock (ConnectedPlayers)
-            {
-                foreach (var destinationClient in ConnectedPlayers)
-                {
-                    foreach (var subjectClient in ConnectedPlayers)
-                    {
-                        SendClientPositionToConnectedPlayer(destinationClient, subjectClient);
-                    }
-                }
-            }
-
-            Thread.Sleep(TickRateMilliseconds);
-        }
-    }
-
-    public void Start()
-    {
         var sender = new IPEndPoint(IPAddress.Any, 0);
         var remote = (EndPoint)sender;
 
         while (true)
         {
             var receivedData = new byte[1024];
+            
             try
             {
                 _socket.ReceiveFrom(receivedData, ref remote);
@@ -120,6 +95,42 @@ public class Server : IHostedService
             };
 
             _messageNotifier.MessageReceived(state);
+        }
+        
+        return Task.CompletedTask;
+    }
+    
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Stopping...");
+        return Task.CompletedTask;
+    }
+    
+    private void InitializeMessageEventHandlers()
+    {
+        _messageNotifier.AddHandler(Message.SetNameMessage, SetName);
+        _messageNotifier.AddHandler(Message.ChatMessage, SendChatMessageToAllConnectedPlayers);
+        _messageNotifier.AddHandler(Message.PlayerConnectMessage, PlayerConnect);
+        _messageNotifier.AddHandler(Message.UpdatePositionMessage, UpdatePosition);
+    }
+
+    private void Tick()
+    {
+        while (true)
+        {
+            // TODO: I don't think this lock does quite what I want it to. Need more thread-safety in case of disconnects etc.
+            lock (ConnectedPlayers)
+            {
+                foreach (var destinationClient in ConnectedPlayers)
+                {
+                    foreach (var subjectClient in ConnectedPlayers)
+                    {
+                        SendClientPositionToConnectedPlayer(destinationClient, subjectClient);
+                    }
+                }
+            }
+
+            Thread.Sleep(TickRateMilliseconds);
         }
     }
 
@@ -181,8 +192,7 @@ public class Server : IHostedService
             return;
         }
 
-        var byteBuffer = MessageBuilder.BuildPlayerIdMessage(player.Player);
-        _socket.SendToAsync(byteBuffer, SocketFlags.None, player.EndPoint);
+        SendToOne(player, MessageBuilder.BuildPlayerIdMessage(player.Player));
     }
 
     private void SendClientPositionToConnectedPlayer(ConnectedPlayer subjectPlayer, ConnectedPlayer destinationPlayer)
@@ -192,31 +202,25 @@ public class Server : IHostedService
             return;
         }
 
-        var byteBuffer = MessageBuilder.BuildUpdatePositionMessage(subjectPlayer.Player);
-        _socket.SendToAsync(byteBuffer, SocketFlags.None, destinationPlayer.EndPoint);
+        SendToOne(destinationPlayer, MessageBuilder.BuildUpdatePositionMessage(subjectPlayer.Player));
     }
 
-    private void SendMessageToAllConnectedPlayers(MessageState state)
+    private void SendChatMessageToAllConnectedPlayers(MessageState state)
     {
         var chatMessage = state.BaseMessage.MessageAsChatMessage();
-        var byteBuffer = MessageBuilder.BuildChatMessage(state.Player, chatMessage.Contents);
+        SendToAll(MessageBuilder.BuildChatMessage(state.Player, chatMessage.Contents));
+    }
 
+    private void SendToOne(ConnectedPlayer player, byte[] data)
+    {
+        _socket.SendToAsync(data, SocketFlags.None, player.EndPoint);
+    }
+
+    private void SendToAll(byte[] data)
+    {
         foreach (var client in ConnectedPlayers)
         {
-            _socket.SendTo(byteBuffer, byteBuffer.Length, SocketFlags.None, client.EndPoint);
+            _socket.SendTo(data, data.Length, SocketFlags.None, client.EndPoint);
         }
-    }
-
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("Starting...");
-        Start();
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("Stopping...");
-        return Task.CompletedTask;
     }
 }
