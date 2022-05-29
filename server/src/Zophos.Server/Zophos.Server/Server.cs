@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Zophos.Data;
 using Zophos.Data.Models.Db;
 using Zophos.Server.Helpers;
+using Zophos.Server.Models;
 
 namespace Zophos.Server;
 
@@ -52,6 +53,7 @@ public class Server : IHostedService
     {
         while (true)
         {
+            // TODO: I don't think this lock does quite what I want it to. Need more thread-safety in case of disconnects etc.
             lock (ConnectedPlayers)
             {
                 foreach (var destinationClient in ConnectedPlayers)
@@ -122,6 +124,7 @@ public class Server : IHostedService
     
     private void HandleMessage(MessageState state)
     {
+        // TODO: this shouldn't be in the main server class. Events?
         switch (state.BaseMessage.MessageType)
         {
             case Message.NONE:

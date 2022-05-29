@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using Zophos.Data.Models.Db;
 
-namespace Zophos.Server;
+namespace Zophos.Server.Models;
 
 public class ConnectedPlayer
 {
