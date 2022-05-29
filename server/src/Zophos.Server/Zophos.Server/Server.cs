@@ -27,10 +27,13 @@ public class Server : IHostedService
     private const int TickRateMilliseconds = 32;
 
     private readonly ILogger _logger;
+    
+    private readonly IPlayerRegistrationService _playerRegistrationService;
 
-    public Server(ILogger<Server> logger)
+    public Server(ILogger<Server> logger, IPlayerRegistrationService playerRegistrationService)
     {
         _logger = logger;
+        _playerRegistrationService = playerRegistrationService;
         
         Clients = new List<Client>();
         
@@ -145,11 +148,14 @@ public class Server : IHostedService
             // Player is already connected.
             return;
         }
-
-        Clients.Add(new Client(state.BaseMessage.ClientId)
+        
+        var client = new Client(state.BaseMessage.ClientId)
         {
             EndPoint = state.Remote
-        });
+        };
+
+        _playerRegistrationService.RegisterPlayer(client, "Me");
+        Clients.Add(client);
     }
 
     private void SetName(MessageState state)
