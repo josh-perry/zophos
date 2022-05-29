@@ -1,4 +1,5 @@
 ﻿using Zophos.Data;
+using Zophos.Server.Models;
 using Zophos.Server.Services;
 
 namespace Zophos.Server;

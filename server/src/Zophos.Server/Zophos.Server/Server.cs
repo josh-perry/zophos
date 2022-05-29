@@ -4,28 +4,16 @@ using FlatBuffers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Zophos.Data;
-using Zophos.Data.Models.Db;
 using Zophos.Server.Helpers;
 using Zophos.Server.Models;
 
 namespace Zophos.Server;
-
-public class MessageState
-{
-    public BaseMessage BaseMessage;
-
-    public EndPoint Remote;
-
-    public Player? Player;
-}
 
 public class Server : IHostedService
 {
     public readonly IList<ConnectedPlayer> ConnectedPlayers;
 
     private readonly Socket _socket;
-
-    private Thread _tickThread;
 
     private const int TickRateMilliseconds = 32;
 
@@ -48,8 +36,8 @@ public class Server : IHostedService
         _socket.Bind(ip);
 
         var threadStart = new ThreadStart(Tick);
-        _tickThread = new Thread(threadStart);
-        _tickThread.Start();
+        var tickThread = new Thread(threadStart);
+        tickThread.Start();
         
         InitializeMessageEventHandlers();
     }

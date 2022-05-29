@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Zophos.Data;
+using Zophos.Server.Models;
 
 namespace Zophos.Server.Services;
 
