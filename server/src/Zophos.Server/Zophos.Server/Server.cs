@@ -188,24 +188,8 @@ public class Server : IHostedService
         {
             return;
         }
-        
-        var builder = new FlatBufferBuilder(1024);
 
-        var buildPlayerId = builder.CreateString(player.Player.Id.ToString());
-        PlayerIdMessage.StartPlayerIdMessage(builder);
-        PlayerIdMessage.AddPlayerId(builder, buildPlayerId);
-        var buildUpdatePositionMessage = PlayerIdMessage.EndPlayerIdMessage(builder);
-        
-        var buildClientId = builder.CreateString(player.Player.Id.ToString());
-        BaseMessage.StartBaseMessage(builder);
-        BaseMessage.AddMessageType(builder, Message.PlayerIdMessage);
-        BaseMessage.AddMessage(builder, buildUpdatePositionMessage.Value);
-        BaseMessage.AddClientId(builder, buildClientId);
-        var baseMessage = BaseMessage.EndBaseMessage(builder);
-
-        builder.Finish(baseMessage.Value);
-
-        var byteBuffer = builder.SizedByteArray();
+        var byteBuffer = MessageBuilder.BuildPlayerIdMessage(player.Player);
         _socket.SendToAsync(byteBuffer, SocketFlags.None, player.EndPoint);
     }
 
