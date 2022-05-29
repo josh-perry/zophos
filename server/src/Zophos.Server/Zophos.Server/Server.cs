@@ -4,6 +4,7 @@ using FlatBuffers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Zophos.Data;
+using Zophos.Data.Repositories.Contracts;
 using Zophos.Server.Helpers;
 using Zophos.Server.Models;
 
@@ -23,11 +24,17 @@ public class Server : IHostedService
     
     private readonly IMessageNotifier _messageNotifier;
     
-    public Server(ILogger<Server> logger, IPlayerRegistrationService playerRegistrationService, IMessageNotifier messageNotifier)
+    private readonly IPlayerRepository _playerRepository;
+
+    public Server(ILogger<Server> logger,
+        IPlayerRegistrationService playerRegistrationService,
+        IMessageNotifier messageNotifier,
+        IPlayerRepository playerRepository)
     {
         _logger = logger;
         _playerRegistrationService = playerRegistrationService;
         _messageNotifier = messageNotifier;
+        _playerRepository = playerRepository;
 
         ConnectedPlayers = new List<ConnectedPlayer>();
         
@@ -38,6 +45,8 @@ public class Server : IHostedService
         var threadStart = new ThreadStart(Tick);
         var tickThread = new Thread(threadStart);
         tickThread.Start();
+        
+        new Thread(SaveTick).Start();
         
         InitializeMessageEventHandlers();
     }
@@ -122,6 +131,16 @@ public class Server : IHostedService
         }
     }
 
+    private void SaveTick()
+    {
+        // HACK: lol
+        while (true)
+        {
+            _playerRepository.Save(ConnectedPlayers. Select(x => x.Player)!);
+            Thread.Sleep(1000);
+        }
+    }
+
     private void DropClient(EndPoint remote)
     {
         var client = ConnectedPlayers.FirstOrDefault(x => x.EndPoint == remote);
@@ -136,12 +155,26 @@ public class Server : IHostedService
     
     private void PlayerConnect(MessageState state)
     {
-        var player = _playerRegistrationService.RegisterPlayer("Me");
+        var playerConnectMessage = state.BaseMessage.MessageAsPlayerConnectMessage();
+        var player = _playerRepository.GetPlayerByName(playerConnectMessage.Name);
+
+        if (player == null)
+        {
+            var newRegistration = _playerRegistrationService.RegisterPlayer(playerConnectMessage.Name);
+
+            if (newRegistration.RegistrationStatus == RegistrationStatus.Failed)
+            {
+                _logger.LogError("Failed to register player!");
+                return;
+            }
+
+            player = newRegistration.Player;
+        }
 
         var connectedPlayer = new ConnectedPlayer
         {
             EndPoint = state.Remote,
-            Player = player.Player
+            Player = player
         };
 
         ConnectedPlayers.Add(connectedPlayer);
