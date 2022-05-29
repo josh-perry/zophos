@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Zophos.Data;
 using Zophos.Data.Models.Db;
+using Zophos.Server.Helpers;
 
 namespace Zophos.Server;
 
@@ -215,54 +216,19 @@ public class Server : IHostedService
             return;
         }
 
-        var builder = new FlatBufferBuilder(1024);
-        
-        UpdatePositionMessage.StartUpdatePositionMessage(builder);
-        UpdatePositionMessage.AddX(builder, subjectPlayer.Player.X);
-        UpdatePositionMessage.AddY(builder, subjectPlayer.Player.Y);
-        var buildUpdatePositionMessage = UpdatePositionMessage.EndUpdatePositionMessage(builder);
-        
-        BuildBaseMessageAndFinish(builder, subjectPlayer.Player, buildUpdatePositionMessage.Value, Message.UpdatePositionMessage);
-
-        var byteBuffer = builder.SizedByteArray();
+        var byteBuffer = MessageBuilder.BuildUpdatePositionMessage(subjectPlayer.Player);
         _socket.SendToAsync(byteBuffer, SocketFlags.None, destinationPlayer.EndPoint);
     }
 
     private void SendMessageToAllConnectedPlayers(MessageState state)
     {
         var chatMessage = state.BaseMessage.MessageAsChatMessage();
-        
-        var builder = new FlatBufferBuilder(1024);
-        
-        var buildContents = builder.CreateString(chatMessage.Contents);
-        var buildSourceClientId = builder.CreateString(state.Player?.Id.ToString());
-        var buildDestinationSourceId = builder.CreateString(string.Empty);
-        ChatMessage.StartChatMessage(builder);
-        ChatMessage.AddContents(builder, buildContents);
-        ChatMessage.AddSourceClientId(builder, buildSourceClientId);
-        ChatMessage.AddDestinationClientId(builder, buildDestinationSourceId);
-        var buildChatMessage = ChatMessage.EndChatMessage(builder);
-        
-        BuildBaseMessageAndFinish(builder, state.Player, buildChatMessage.Value, Message.ChatMessage);
-
-        var byteBuffer = builder.SizedByteArray();
+        var byteBuffer = MessageBuilder.BuildChatMessage(state.Player, chatMessage.Contents);
 
         foreach (var client in ConnectedPlayers)
         {
             _socket.SendTo(byteBuffer, byteBuffer.Length, SocketFlags.None, client.EndPoint);
         }
-    }
-
-    private void BuildBaseMessageAndFinish(FlatBufferBuilder builder, Player player, int messageOffset, Message messageType)
-    {
-        var buildClientId = builder.CreateString(player.Id.ToString());
-        BaseMessage.StartBaseMessage(builder);
-        BaseMessage.AddMessageType(builder, messageType);
-        BaseMessage.AddMessage(builder, messageOffset);
-        BaseMessage.AddClientId(builder, buildClientId);
-        
-        var baseMessage = BaseMessage.EndBaseMessage(builder);
-        builder.Finish(baseMessage.Value);
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
