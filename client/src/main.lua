@@ -42,14 +42,21 @@ function addClientIfUnknown(id, x, y, name)
     return otherClients[id]
 end
 
-function love.load()
+function love.load(args)
+    for _, v in ipairs(args) do
+        if v:starts_with("name=") then
+            player.name = v:split("name=")[2]
+            print(player.name)
+        end
+    end
+
     player.w = 32
     player.h = 32
     player.x = love.math.random(10, love.graphics.getWidth() - player.w - 10)
     player.y = love.math.random(10, love.graphics.getHeight() - player.h - 10)
     player.speed = 150
     player.id = ""
-    player.name = "Player"
+    player.name = player.name or "Player"
 
     network:initialize("127.0.0.1", 22122)
     network:send(messageBuilders.connect(player.id))
