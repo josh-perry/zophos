@@ -25,11 +25,7 @@ public class Program
             {
                 config.AddJsonFile("appsettings.json");
                 config.AddEnvironmentVariables();
-
-                if (args != null)
-                {
-                    config.AddCommandLine(args);
-                }
+                config.AddCommandLine(args);
             })
             .ConfigureServices((context, services) =>
             {
