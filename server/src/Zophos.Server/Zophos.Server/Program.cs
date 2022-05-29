@@ -43,6 +43,7 @@ public class Program
 
                 services.AddTransient<IPlayerRepository, PlayerRepository>();
                 
+                services.AddSingleton<IMessageNotifier, MessageNotifier>();
                 services.AddTransient<IPlayerRegistrationService, PlayerRegistrationService>();
             })
             .ConfigureLogging((context, logging) =>

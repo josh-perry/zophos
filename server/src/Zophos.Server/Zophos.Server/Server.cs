@@ -32,11 +32,14 @@ public class Server : IHostedService
     private readonly ILogger _logger;
     
     private readonly IPlayerRegistrationService _playerRegistrationService;
-
-    public Server(ILogger<Server> logger, IPlayerRegistrationService playerRegistrationService)
+    
+    private readonly IMessageNotifier _messageNotifier;
+    
+    public Server(ILogger<Server> logger, IPlayerRegistrationService playerRegistrationService, IMessageNotifier messageNotifier)
     {
         _logger = logger;
         _playerRegistrationService = playerRegistrationService;
+        _messageNotifier = messageNotifier;
 
         ConnectedPlayers = new List<ConnectedPlayer>();
         
@@ -47,6 +50,16 @@ public class Server : IHostedService
         var threadStart = new ThreadStart(Tick);
         _tickThread = new Thread(threadStart);
         _tickThread.Start();
+        
+        InitializeMessageEventHandlers();
+    }
+
+    private void InitializeMessageEventHandlers()
+    {
+        _messageNotifier.AddHandler(Message.SetNameMessage, SetName);
+        _messageNotifier.AddHandler(Message.ChatMessage, SendMessageToAllConnectedPlayers);
+        _messageNotifier.AddHandler(Message.PlayerConnectMessage, PlayerConnect);
+        _messageNotifier.AddHandler(Message.UpdatePositionMessage, UpdatePosition);
     }
 
     private void Tick()
@@ -106,7 +119,7 @@ public class Server : IHostedService
                 Remote = remote
             };
 
-            HandleMessage(state);
+            _messageNotifier.MessageReceived(state);
         }
     }
 
@@ -122,30 +135,6 @@ public class Server : IHostedService
         ConnectedPlayers.Remove(client);
     }
     
-    private void HandleMessage(MessageState state)
-    {
-        // TODO: this shouldn't be in the main server class. Events?
-        switch (state.BaseMessage.MessageType)
-        {
-            case Message.NONE:
-                break;
-            case Message.SetNameMessage:
-                SetName(state);
-                break;
-            case Message.UpdatePositionMessage:
-                UpdatePosition(state);
-                break;
-            case Message.PlayerConnectMessage:
-                PlayerConnect(state);
-                break;
-            case Message.ChatMessage:
-                SendMessageToAllConnectedPlayers(state);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(state.BaseMessage.MessageType));
-        }
-    }
-
     private void PlayerConnect(MessageState state)
     {
         var player = _playerRegistrationService.RegisterPlayer("Me");
