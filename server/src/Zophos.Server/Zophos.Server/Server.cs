@@ -222,14 +222,7 @@ public class Server : IHostedService
         UpdatePositionMessage.AddY(builder, subjectPlayer.Player.Y);
         var buildUpdatePositionMessage = UpdatePositionMessage.EndUpdatePositionMessage(builder);
         
-        var buildClientId = builder.CreateString(subjectPlayer.Player.Id.ToString());
-        BaseMessage.StartBaseMessage(builder);
-        BaseMessage.AddMessageType(builder, Message.UpdatePositionMessage);
-        BaseMessage.AddMessage(builder, buildUpdatePositionMessage.Value);
-        BaseMessage.AddClientId(builder, buildClientId);
-        var baseMessage = BaseMessage.EndBaseMessage(builder);
-
-        builder.Finish(baseMessage.Value);
+        BuildBaseMessageAndFinish(builder, subjectPlayer.Player, buildUpdatePositionMessage.Value, Message.UpdatePositionMessage);
 
         var byteBuffer = builder.SizedByteArray();
         _socket.SendToAsync(byteBuffer, SocketFlags.None, destinationPlayer.EndPoint);
@@ -250,14 +243,7 @@ public class Server : IHostedService
         ChatMessage.AddDestinationClientId(builder, buildDestinationSourceId);
         var buildChatMessage = ChatMessage.EndChatMessage(builder);
         
-        var buildClientId = builder.CreateString(state.Player?.Id.ToString());
-        BaseMessage.StartBaseMessage(builder);
-        BaseMessage.AddMessageType(builder, Message.ChatMessage);
-        BaseMessage.AddMessage(builder, buildChatMessage.Value);
-        BaseMessage.AddClientId(builder, buildClientId);
-        var baseMessage = BaseMessage.EndBaseMessage(builder);
-
-        builder.Finish(baseMessage.Value);
+        BuildBaseMessageAndFinish(builder, state.Player, buildChatMessage.Value, Message.ChatMessage);
 
         var byteBuffer = builder.SizedByteArray();
 
@@ -265,6 +251,18 @@ public class Server : IHostedService
         {
             _socket.SendTo(byteBuffer, byteBuffer.Length, SocketFlags.None, client.EndPoint);
         }
+    }
+
+    private void BuildBaseMessageAndFinish(FlatBufferBuilder builder, Player player, int messageOffset, Message messageType)
+    {
+        var buildClientId = builder.CreateString(player.Id.ToString());
+        BaseMessage.StartBaseMessage(builder);
+        BaseMessage.AddMessageType(builder, messageType);
+        BaseMessage.AddMessage(builder, messageOffset);
+        BaseMessage.AddClientId(builder, buildClientId);
+        
+        var baseMessage = BaseMessage.EndBaseMessage(builder);
+        builder.Finish(baseMessage.Value);
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
