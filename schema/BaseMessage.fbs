@@ -2,6 +2,7 @@ include "UpdatePositionMessage.fbs";
 include "SetNameMessage.fbs";
 include "PlayerConnectMessage.fbs";
 include "ChatMessage.fbs";
+include "PlayerIdMessage.fbs";
 
 namespace Zophos.Data;
 
@@ -9,7 +10,8 @@ union Message {
     SetNameMessage,
     UpdatePositionMessage,
     PlayerConnectMessage,
-    ChatMessage
+    ChatMessage,
+    PlayerIdMessage
 }
 
 table BaseMessage {
