@@ -59,7 +59,7 @@ function love.load(args)
     player.name = player.name or "Player"
 
     network:initialize("127.0.0.1", 22122)
-    network:send(messageBuilders.connect(player.id))
+    network:send(messageBuilders.connect(player.name))
 
     network:addCallbackForMessageType(MessageType.ChatMessage, function(baseMessage)
         chat:addMessage(baseMessage)

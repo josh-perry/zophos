@@ -24,13 +24,16 @@ local function buildBaseMessageAndFinish(builder, clientId, message, messageType
     return builder:Finish(message)
 end
 
-function messageBuilders.connect(clientId)
+function messageBuilders.connect(playerName)
     local builder = flatbuffers.Builder(defaultBufferSize)
 
+    local buildPlayerName = builder:CreateString(playerName)
+
     PlayerConnectMessage.Start(builder)
+    PlayerConnectMessage.AddName(builder, buildPlayerName)
     local connectMessage = PlayerConnectMessage.End(builder)
 
-    buildBaseMessageAndFinish(builder, clientId, connectMessage, MessageType.PlayerConnectMessage)
+    buildBaseMessageAndFinish(builder, "", connectMessage, MessageType.PlayerConnectMessage)
     return builder:Output()
 end
 
