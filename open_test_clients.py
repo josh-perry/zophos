@@ -8,4 +8,3 @@ def open_client(i):
 if __name__ == "__main__":
     for i in range(0, 2):
         open_client(i)
-        time.sleep(1)
