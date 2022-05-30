@@ -4,3 +4,6 @@
 [submodule "client/dependencies/json.lua"]
 	path = client/dependencies/json.lua
 	url = https://github.com/rxi/json.lua
+[submodule "client/dependencies/Concord"]
+	path = client/dependencies/Concord
+	url = https://github.com/Keyslam/Concord.git

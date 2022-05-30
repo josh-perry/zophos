@@ -41,7 +41,8 @@ if __name__ == "__main__":
 
     dependencies = [
         Dependency("dependencies/json.lua", "src/lib/json", ["json.lua"]),
-        Dependency("dependencies/batteries", "src/lib/batteries", ["*.lua"])
+        Dependency("dependencies/batteries", "src/lib/batteries", ["*.lua"]),
+        Dependency("dependencies/concord/concord", "src/lib", ["*.lua"])
     ]
 
     install_dependencies(dependencies)
