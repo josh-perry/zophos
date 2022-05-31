@@ -16,7 +16,7 @@ public class Server : IHostedService
 
     private readonly Socket _socket;
 
-    private const int TickRateMilliseconds = 32;
+    private const int TickRateMilliseconds = 100;
 
     private readonly ILogger _logger;
     
@@ -109,8 +109,9 @@ public class Server : IHostedService
         _messageNotifier.AddHandler(Message.ChatMessage, SendChatMessageToAllConnectedPlayers);
         _messageNotifier.AddHandler(Message.PlayerConnectMessage, PlayerConnect);
         _messageNotifier.AddHandler(Message.UpdatePositionMessage, UpdatePosition);
+        _messageNotifier.AddHandler(Message.RequestEntityInitInfoMessage, RequestEntityInitInfoMessage);
     }
-
+    
     private void Tick()
     {
         while (true)
@@ -230,6 +231,29 @@ public class Server : IHostedService
     {
         var chatMessage = state.BaseMessage.MessageAsChatMessage();
         SendToAll(MessageBuilder.BuildChatMessage(state.Player, chatMessage.Contents));
+    }
+    
+    private void RequestEntityInitInfoMessage(MessageState state)
+    {
+        var requestEntityInitInfoMessage = state.BaseMessage.MessageAsRequestEntityInitInfoMessage();
+        var id = requestEntityInitInfoMessage.Id;
+        
+        // Is the id they're after for a player?
+        var player = _playerRepository.GetPlayerById(id);
+        if (player == null)
+        {
+            // Other kind of entity: figure this out later.
+            return;
+        }
+
+        var connectedPlayer = ConnectedPlayers.FirstOrDefault(x => x.Player == state.Player);
+        if (connectedPlayer == null)
+        {
+            // The player that wanted this info has gone?
+            return;
+        }
+        
+        SendToOne(connectedPlayer, MessageBuilder.BuildPlayerInitMessage(player));
     }
 
     private void SendToOne(ConnectedPlayer player, byte[] data)

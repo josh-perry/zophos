@@ -61,4 +61,22 @@ public static class MessageBuilder
         BuildBaseMessageAndFinish(builder, player, buildPlayerIdMessage.Value, Message.PlayerIdMessage);
         return builder.SizedByteArray();
     }
+    
+    public static byte[] BuildPlayerInitMessage(Player player)
+    {
+        var builder = new FlatBufferBuilder(1024);
+        
+        var buildPlayerId = builder.CreateString(player.Id.ToString());
+        var buildPlayerName = builder.CreateString(player.Name);
+        
+        PlayerInitMessage.StartPlayerInitMessage(builder);
+        PlayerInitMessage.AddId(builder, buildPlayerId);
+        PlayerInitMessage.AddName(builder, buildPlayerName);
+        PlayerInitMessage.AddX(builder, player.X);
+        PlayerInitMessage.AddY(builder, player.Y);
+        var buildPlayerIdMessage = PlayerInitMessage.EndPlayerInitMessage(builder);
+        
+        BuildBaseMessageAndFinish(builder, player, buildPlayerIdMessage.Value, Message.PlayerInitMessage);
+        return builder.SizedByteArray();
+    }
 }
