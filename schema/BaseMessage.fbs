@@ -3,6 +3,8 @@ include "SetNameMessage.fbs";
 include "PlayerConnectMessage.fbs";
 include "ChatMessage.fbs";
 include "PlayerIdMessage.fbs";
+include "PlayerInitMessage.fbs";
+include "RequestEntityInitInfoMessage.fbs";
 
 namespace Zophos.Data;
 
@@ -11,7 +13,9 @@ union Message {
     UpdatePositionMessage,
     PlayerConnectMessage,
     ChatMessage,
-    PlayerIdMessage
+    PlayerIdMessage,
+    PlayerInitMessage,
+    RequestEntityInitInfoMessage
 }
 
 table BaseMessage {

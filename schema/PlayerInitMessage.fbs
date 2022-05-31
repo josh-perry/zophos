@@ -1,0 +1,8 @@
+namespace Zophos.Data;
+
+table PlayerInitMessage {
+    id: string;
+    name: string;
+    x: float;
+    y: float;
+}
