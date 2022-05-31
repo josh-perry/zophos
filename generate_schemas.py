@@ -43,7 +43,7 @@ if __name__ == "__main__":
     schema_directory = Path("schema")
 
     languages = [
-        Language("cs", "--csharp", "server/src/Zophos.Server/Zophos.Data/Schemas"),
+        Language("cs", "--csharp", "server/src/Zophos.Data/Schemas"),
         Language("lua", "--lua", "client/src/schemas")
     ]
 

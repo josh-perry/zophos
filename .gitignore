@@ -523,8 +523,8 @@ fabric.properties
 
 # End of https://www.toptal.com/developers/gitignore/api/rider,csharp,lua
 
-server/src/Zophos.Server/Zophos.Data/Schemas
+server/src/Zophos.Data/Schemas
 client/src/schemas
 client/src/lib/batteries
-server/src/Zophos.Server/Zophos.Server/app.db
+server/src/Zophos.Server/app.db
 client/src/lib/concord
