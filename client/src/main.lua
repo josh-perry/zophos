@@ -7,59 +7,49 @@ local chat = require("chat")
 local MessageType = require("schemas.Message")
 local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
 local PlayerIdMessage = require("schemas.PlayerIdMessage")
+local PlayerInitMessage = require("schemas.PlayerInitMessage")
 
 local network = require("network")
 
 local player = {}
 local otherClients = {}
 
-local function generateUuid4()
-    local _random = love.math.random
-    local uuidTemplate = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+_G.Concord = require("lib.concord")
 
-    local uuid4 = uuidTemplate:gsub("[xy]", function (c)
-        -- x should be 0x0-0xF, the single y should be 0x8-0xB
-        return string.format("%x", c == "x" and _random(0x0, 0xF) or _random(0x8, 0xB))
-    end)
+local Systems = {}
+Concord.utils.loadNamespace("ecs/components")
+Concord.utils.loadNamespace("ecs/systems", Systems)
 
-    return uuid4
-end
-
-function addClientIfUnknown(id, x, y, name)
-    if otherClients[id] then
-        return otherClients[id]
-    end
-
-    print("Adding other client!")
-    otherClients[id] = {
-        x = 0,
-        y = 0,
-        w = 32,
-        h = 32,
-        name = name or id or "[Unknown]"
-    }
-
-    return otherClients[id]
-end
+local world = Concord.world()
 
 function love.load(args)
+    local playerName = "DefaultName"
+
     for _, v in ipairs(args) do
         if v:starts_with("name=") then
-            player.name = v:split("name=")[2]
-            print(player.name)
+            playerName = v:split("name=")[2]
         end
     end
 
-    player.w = 32
-    player.h = 32
-    player.x = love.math.random(10, love.graphics.getWidth() - player.w - 10)
-    player.y = love.math.random(10, love.graphics.getHeight() - player.h - 10)
-    player.speed = 150
-    player.id = ""
-    player.name = player.name or "Player"
+    for _, system in pairs(Systems) do
+        world:addSystems(system)
+    end
+
+    local w, h = 32, 32
+    local x = love.math.random(10, love.graphics.getWidth() - w - 10)
+    local y = love.math.random(10, love.graphics.getHeight() - h - 10)
+
+    local playerEntity = Concord.entity(world)
+        :give("drawable")
+        :give("moveable")
+        :give("player", playerName, true)
+        :give("position", x, y)
+        :give("moveable", 150)
+        :give("networked", "")
+        :give("controlled")
 
     network:initialize("127.0.0.1", 22122)
-    network:send(messageBuilders.connect(player.name))
+    network:send(messageBuilders.connect(playerName))
 
     network:addCallbackForMessageType(MessageType.ChatMessage, function(baseMessage)
         chat:addMessage(baseMessage)
@@ -68,60 +58,41 @@ function love.load(args)
     network:addCallbackForMessageType(MessageType.PlayerIdMessage, function(baseMessage)
         local playerIdMessage = PlayerIdMessage.New()
         playerIdMessage:Init(baseMessage:Message().bytes, baseMessage:Message().pos)
-
-        print("Player id was "..player.id)
-        player.id = playerIdMessage:PlayerId()
-        print("Updating player id to "..player.id)
+        network.id = playerIdMessage:PlayerId()
+        world:emit("PlayerIdMessageReceived", baseMessage, playerIdMessage)
     end)
 
     network:addCallbackForMessageType(MessageType.UpdatePositionMessage, function(baseMessage)
         local updatePositionMessage = UpdatePositionMessage.New()
         updatePositionMessage:Init(baseMessage:Message().bytes, baseMessage:Message().pos)
-
-        if baseMessage:ClientId() ~= player.id then
-            local otherClient = addClientIfUnknown(baseMessage:ClientId())
-            otherClient.x = updatePositionMessage:X()
-            otherClient.y = updatePositionMessage:Y()
-            return
-        end
-
-        player.x = updatePositionMessage:X()
-        player.y = updatePositionMessage:Y()
+        world:emit("UpdatePositionMessageReceived", baseMessage, updatePositionMessage)
     end)
 
-    network:send(messageBuilders.updatePosition(player.id, player.x, player.y))
+    network:addCallbackForMessageType(MessageType.PlayerInitMessage, function(baseMessage)
+        local playerInitMessage = PlayerInitMessage.New()
+        playerInitMessage:Init(baseMessage:Message().bytes, baseMessage:Message().pos)
+
+        print("new player!")
+
+        -- Add player
+        local otherPlayer = Concord.entity(world)
+            :give("drawable")
+            :give("moveable")
+            :give("player", playerInitMessage:Name(), false)
+            :give("position", playerInitMessage:X(), playerInitMessage:Y())
+            :give("moveable", 150)
+            :give("networked", playerInitMessage:Id())
+
+        world:emit("PlayerInitMessageReceived", baseMessage, playerInitMessage)
+    end)
 end
 
 function love.update(dt)
-    local dx, dy = 0, 0
-
-    if love.keyboard.isDown("w") then
-        dy = -1
-    end
-    if love.keyboard.isDown("s") then
-        dy = 1
-    end
-    if love.keyboard.isDown("a") then
-        dx = -1
-    end
-    if love.keyboard.isDown("d") then
-        dx = 1
-    end
-
-    if dx ~= 0 or dy ~= 0 then
-        player.x = player.x + dx * player.speed * dt
-        player.y = player.y + dy * player.speed * dt
-        network:send(messageBuilders.updatePosition(player.id, player.x, player.y))
-    end
-
     network:update(dt)
+    world:emit("update", dt)
 end
 
 function love.draw()
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print(player.name, 10, 10)
-    love.graphics.print(player.id, 10, 30)
-
     if network.falseDisconnect then
         local r = 8
         love.graphics.setColor(1, 0, 0, 1)
@@ -132,24 +103,20 @@ function love.draw()
         love.graphics.circle("fill", love.graphics.getWidth() - 10 - r * 2, 10 + r * 2, r)
     end
 
-    love.graphics.setColor(0.5, 0.5, 1)
-    love.graphics.rectangle("fill", math.round(player.x), math.round(player.y), player.w, player.h)
-
     for i, v in pairs(otherClients) do
         love.graphics.setColor(1, 1, 1)
         love.graphics.rectangle("line", math.round(v.x), math.round(v.y), v.w, v.h)
     end
 
     chat:draw()
+    world:emit("draw")
 end
 
 function love.keypressed(key)
-    if key == "space" then
-        network:send(messageBuilders.setName(player.id, "my new name"))
-    elseif key == "tab" then
+    if key == "tab" then
         chat:toggleFocus()
     elseif key == "return" then
-        chat:sendMessage(player.id)
+        chat:sendMessage(network.id)
     elseif key == "backspace" then
         chat:backspace()
     elseif key == "f2" then

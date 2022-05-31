@@ -1,5 +1,7 @@
 local socket = require("socket")
 local flatbuffers = require("flatbuffers")
+local messageBuilders = require("messageBuilders")
+
 local BaseMessage = require("schemas.BaseMessage")
 
 local network = {}
@@ -7,6 +9,8 @@ local network = {}
 network.client = {}
 network.queuedMessages = {}
 network.callbacks = {}
+network.id = nil
+network.unknownIds = {}
 network.falseDisconnect = false
 
 network.heartbeat = {
@@ -55,6 +59,12 @@ function network:update(dt)
             self:handleMessage(message)
         end
     until not data
+
+    for id, _ in pairs(self.unknownIds) do
+        print(string.format("Requesting info for %s", id))
+        self:send(messageBuilders.RequestEntityInitInfoMessage(self.id, id))
+        self.unknownIds[id] = nil
+    end
 
     self.heartbeat:update(dt)
     self:flushMessages()

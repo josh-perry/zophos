@@ -6,6 +6,7 @@ local BaseMessage = require("schemas.BaseMessage")
 local SetNameMessage = require("schemas.SetNameMessage")
 local PlayerConnectMessage = require("schemas.PlayerConnectMessage")
 local UpdatePositionMessage = require("schemas.UpdatePositionMessage")
+local RequestEntityInitInfoMessage = require("schemas.RequestEntityInitInfoMessage")
 
 local messageBuilders = {}
 
@@ -72,6 +73,19 @@ function messageBuilders.updatePosition(clientId, x, y)
     local updatePositionMessage = UpdatePositionMessage.End(builder)
 
     buildBaseMessageAndFinish(builder, clientId, updatePositionMessage, MessageType.UpdatePositionMessage)
+    return builder:Output()
+end
+
+function messageBuilders.RequestEntityInitInfoMessage(clientId, entityNetworkId)
+    local builder = flatbuffers.Builder(defaultBufferSize)
+
+    local buildId = builder:CreateString(entityNetworkId)
+
+    RequestEntityInitInfoMessage.Start(builder)
+    RequestEntityInitInfoMessage.AddId(builder, buildId)
+    local requestEntityInfoMessage = RequestEntityInitInfoMessage.End(builder)
+
+    buildBaseMessageAndFinish(builder, clientId, requestEntityInfoMessage, MessageType.RequestEntityInitInfoMessage)
     return builder:Output()
 end
 
