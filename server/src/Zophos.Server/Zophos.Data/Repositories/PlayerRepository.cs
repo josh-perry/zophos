@@ -15,7 +15,14 @@ public class PlayerRepository : IPlayerRepository
     
     public Player? GetPlayerById(string id)
     {
-        return _gameServerDbContext.Players.FirstOrDefault(x => x.Id.ToString() == id);
+        var validId = Guid.TryParse(id, out var guid);
+
+        if (!validId)
+        {
+            return null;
+        }
+
+        return _gameServerDbContext.Players.FirstOrDefault(x => x.Id == guid);
     }
 
     public Player? GetPlayerByName(string name)
